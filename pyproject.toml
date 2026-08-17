@@ -1,0 +1,21 @@
+[project]
+name = "patentpincer"
+version = "0.1.0"
+description = "An autonomous patentability analyst: SerpApi Google Patents as the data backbone, agent-core for multi-agent orchestration, guardrails, and verdict routing."
+requires-python = ">=3.10"
+dependencies = [
+    "agent-core",        # local: pip install -e ../../packages/agent-core
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23"]
+
+[project.scripts]
+patentpincer = "patentpincer.main:cli"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["patentpincer*"]
