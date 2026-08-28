@@ -1,0 +1,1833 @@
+<title>PatentPincer, is it novel?</title>
+<style>
+  :root {
+    --navy: #0E1C2B; --panel: #13273A; --panel2: #16304a; --line: #274056;
+    --text: #E8F0F6; --muted: #8AA3B5; --faint: #5A7387;
+    --cyan: #5FB0D9; --green: #3FBF7F; --amber: #E0A63C; --red: #E5595B;
+    --mono: "Courier New", ui-monospace, Menlo, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background:
+      linear-gradient(transparent 95%, rgba(95,176,217,.06) 95%) 0 0 / 100% 26px,
+      linear-gradient(90deg, transparent 95%, rgba(95,176,217,.06) 95%) 0 0 / 26px 100%,
+      var(--navy);
+    color: var(--text); font-family: var(--sans); line-height: 1.5; min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 40px 24px 64px; }
+  .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .2em; text-transform: uppercase; color: var(--cyan); margin: 0 0 10px; }
+  h1 { font-size: clamp(30px, 5vw, 44px); line-height: 1.05; letter-spacing: -.02em; margin: 0; font-weight: 800; text-wrap: balance; }
+  .thesis { color: var(--muted); font-size: 17px; max-width: 62ch; margin: 14px 0 22px; }
+
+  .card { background: linear-gradient(180deg, var(--panel2), var(--panel)); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+  .filing label { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .filing textarea { width: 100%; resize: vertical; min-height: 62px; background: #0a141e; border: 1px solid var(--line); border-radius: 8px; color: var(--text); font-family: var(--mono); font-size: 15px; padding: 12px 14px; outline: none; line-height: 1.5; }
+  .filing textarea:focus { border-color: var(--cyan); }
+  .presets { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 4px; }
+  .chip { font-family: var(--mono); font-size: 12px; color: var(--muted); background: transparent; border: 1px dashed var(--line); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+  .chip:hover { color: var(--cyan); border-color: var(--cyan); }
+  .go { display: flex; justify-content: flex-end; align-items: center; gap: 14px; margin-top: 14px; }
+  .go .hint { font-family: var(--mono); font-size: 11px; color: var(--faint); margin-right: auto; }
+  button.assess { font-family: var(--sans); font-weight: 700; font-size: 15px; background: var(--cyan); color: #06202e; border: 0; border-radius: 9px; padding: 12px 22px; cursor: pointer; }
+  button.assess:hover { background: #7cc4e6; }
+  button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+  .sec-label { font-family: var(--mono); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); margin: 0 0 12px; }
+  .section { margin-top: 30px; }
+  .section-head { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; }
+  .section-head .sec-label { margin: 0; }
+  .helpbtn { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 999px; width: 26px; height: 26px; cursor: pointer; line-height: 1; padding: 0; }
+  .helpbtn:hover, .helpbtn[aria-expanded="true"] { color: var(--cyan); border-color: var(--cyan); }
+  .replay { font-family: var(--mono); font-size: 12px; color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 5px 13px; cursor: pointer; }
+  .replay:hover { color: var(--cyan); border-color: var(--cyan); }
+
+  /* ---- provenance banner ---------------------------------------------------- */
+  .prov { display: none; align-items: flex-start; gap: 13px; margin-top: 22px; border: 1px solid var(--line); border-left-width: 3px; border-radius: 10px; padding: 13px 16px; background: var(--panel); }
+  .prov.show { display: flex; }
+  .prov .badge { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: .14em; border: 1px solid currentColor; border-radius: 5px; padding: 3px 9px; white-space: nowrap; margin-top: 1px; }
+  .prov .ptext { font-size: 13.5px; color: var(--muted); }
+  .prov .ptext b { color: var(--text); }
+  .prov.LIVE { border-left-color: var(--green); } .prov.LIVE .badge { color: var(--green); }
+  .prov.FIXTURE { border-left-color: var(--amber); } .prov.FIXTURE .badge { color: var(--amber); }
+  .prov.UNAVAILABLE { border-left-color: var(--red); } .prov.UNAVAILABLE .badge { color: var(--red); }
+
+  /* ---- unsupported (custom input) ------------------------------------------- */
+  .unsupported { display: none; margin-top: 22px; border: 1px solid var(--line); border-left: 3px solid var(--red); border-radius: 10px; background: var(--panel); padding: 16px 18px; }
+  .unsupported.show { display: block; }
+  .unsupported h4 { font-family: var(--mono); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--red); margin: 0 0 8px; }
+  .unsupported p { font-size: 13.5px; color: var(--muted); margin: 0 0 10px; max-width: 66ch; }
+  .unsupported pre { margin: 0 0 12px; padding: 11px 13px; background: #0a141e; border: 1px solid var(--line); border-radius: 7px; font-family: var(--mono); font-size: 12.5px; color: var(--cyan); overflow-x: auto; white-space: pre; }
+
+  /* ---- how it works: architecture diagram ---------------------------------- */
+  .howcard { padding: 18px 20px 8px; }
+  .arch { width: 100%; height: auto; display: block; }
+  .arch text { font-family: var(--mono); fill: var(--text); }
+  .arch .lbl { fill: var(--muted); font-size: 9px; letter-spacing: .04em; }
+  .arch .stepnum { fill: var(--navy); font-weight: 700; font-size: 10px; }
+  .arch-legend { display: flex; gap: 18px; flex-wrap: wrap; font-family: var(--mono); font-size: 11px; color: var(--faint); margin: 6px 2px 12px; }
+  .arch-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+  /* ---- help legend panel --------------------------------------------------- */
+  .legend { display: none; border: 1px solid var(--line); border-left: 3px solid var(--cyan); border-radius: 8px; background: var(--panel); padding: 14px 16px; margin-bottom: 14px; }
+  .legend.show { display: block; }
+  .legend h4 { font-family: var(--mono); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--cyan); margin: 0 0 8px; }
+  .legend ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+  .legend li { font-size: 13px; color: var(--muted); display: flex; gap: 9px; }
+  .legend li b { color: var(--text); font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+
+  /* ---- agent activity log --------------------------------------------------- */
+  .tracecard { padding: 0; overflow: hidden; }
+  .trace-bar { display: flex; align-items: center; gap: 10px; padding: 11px 16px; border-bottom: 1px solid var(--line); background: #0a141e; }
+  .trace-bar .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--faint); }
+  .trace-bar.running .dot { background: var(--cyan); animation: pulse 1s ease-in-out infinite; }
+  .trace-bar.done .dot { background: var(--green); }
+  @keyframes pulse { 50% { opacity: .35; } }
+  .trace-bar .title { font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .trace-bar .meter { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
+  .trace-body { padding: 6px 0; max-height: 400px; overflow-y: auto; }
+  .step { display: grid; grid-template-columns: 20px 1fr auto; gap: 10px; align-items: start; padding: 8px 16px; opacity: 0; transform: translateX(-6px); }
+  .step.in { animation: slidein .3s cubic-bezier(.2,.7,.2,1) forwards; }
+  @keyframes slidein { to { opacity: 1; transform: none; } }
+  .step .gutter { display: flex; flex-direction: column; align-items: center; }
+  .step .tick { width: 15px; height: 15px; border-radius: 50%; border: 1.5px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 9px; color: #06202e; margin-top: 2px; }
+  .step .tick.pass { background: var(--green); border-color: var(--green); }
+  .step .tick.warn { background: var(--amber); border-color: var(--amber); }
+  .step .tick.stop { background: var(--red); border-color: var(--red); }
+  .step .tick.info { background: var(--cyan); border-color: var(--cyan); }
+  .step .rail { flex: 1; width: 1.5px; background: var(--line); margin: 3px 0 -12px; min-height: 8px; }
+  .step:last-child .rail { display: none; }
+  .step .k { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); }
+  .step .msg { font-size: 13.5px; color: var(--text); margin-top: 1px; font-family: var(--mono); word-break: break-word; }
+  .step .t { font-family: var(--mono); font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; padding-top: 2px; }
+
+  /* ---- serpapi ledger -------------------------------------------------------- */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+  table.ledger { border-collapse: collapse; width: 100%; font-family: var(--mono); font-size: 12px; min-width: 560px; }
+  table.ledger th { text-align: left; color: var(--faint); font-weight: 400; letter-spacing: .1em; text-transform: uppercase; font-size: 10px; padding: 10px 13px; border-bottom: 1px solid var(--line); background: #0a141e; }
+  table.ledger td { padding: 8px 13px; border-bottom: 1px solid rgba(39,64,86,.5); color: var(--muted); vertical-align: top; }
+  table.ledger tr:last-child td { border-bottom: 0; }
+  table.ledger td.q { color: var(--text); max-width: 320px; word-break: break-word; }
+  table.ledger td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .st { font-size: 11px; border: 1px solid currentColor; border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+  .st.ok { color: var(--green); } .st.fixture { color: var(--amber); }
+  .st.fixture_unavailable, .st.error, .st.suppressed { color: var(--red); }
+
+  /* ---- claim-element matrix -------------------------------------------------- */
+  .mrow { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 13px 15px; margin-bottom: 10px; }
+  .mrow .mhead { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+  .mrow .el { font-size: 14.5px; color: var(--text); flex: 1 1 240px; }
+  .mrow .tag { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; border: 1px solid currentColor; border-radius: 4px; padding: 2px 7px; white-space: nowrap; }
+  .mrow .tag.yes { color: var(--red); } .mrow .tag.no { color: var(--green); }
+  .mrow .bar { height: 6px; border-radius: 4px; background: #0a141e; overflow: hidden; border: 1px solid var(--line); margin: 9px 0 7px; }
+  .mrow .bar > span { display: block; height: 100%; width: 0; transition: width .6s cubic-bezier(.2,.7,.2,1); }
+  .mrow .cite { font-family: var(--mono); font-size: 11.5px; color: var(--faint); }
+  .mrow .cite a { color: var(--cyan); text-decoration: none; }
+  .mrow .cite a:hover { text-decoration: underline; }
+  .mrow blockquote { margin: 7px 0 0; padding-left: 11px; border-left: 2px solid var(--line); font-size: 12.5px; color: var(--muted); font-family: var(--mono); line-height: 1.55; }
+
+  /* ---- prior art refs -------------------------------------------------------- */
+  .refs { display: grid; gap: 10px; }
+  .ref { border: 1px solid var(--line); border-radius: 10px; padding: 12px 15px; background: var(--panel); }
+  .ref .rhead { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+  .ref .pid { font-family: var(--mono); color: var(--cyan); font-size: 13px; text-decoration: none; }
+  .ref .pid:hover { text-decoration: underline; }
+  .ref .ttl { font-size: 14px; color: var(--text); margin: 3px 0 0; }
+  .ref .meta { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+
+  /* ---- verdict --------------------------------------------------------------- */
+  .verdict { margin-top: 26px; display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+  .stamp { --c: var(--red); font-family: var(--mono); font-weight: 700; letter-spacing: .08em; color: var(--c); border: 4px double var(--c); border-radius: 10px; padding: 14px 20px; font-size: 20px; text-transform: uppercase; transform: rotate(-7deg) scale(2.4); opacity: 0; }
+  .stamp.land { animation: stampin .45s cubic-bezier(.2,1.3,.5,1) forwards; }
+  @keyframes stampin { 0%{opacity:0;transform:rotate(-7deg) scale(2.4)} 60%{opacity:1;transform:rotate(-7deg) scale(.92)} 100%{opacity:1;transform:rotate(-7deg) scale(1)} }
+  .vtext { flex: 1 1 280px; }
+  .vtext .vt { font-weight: 700; font-size: 16px; margin: 0 0 4px; }
+  .vtext .vd { color: var(--muted); font-size: 13.5px; margin: 0; }
+  .vtext .down { color: var(--amber); font-size: 12.5px; font-family: var(--mono); margin: 7px 0 0; }
+  @media (prefers-reduced-motion: reduce){ * { animation: none !important; transition: none !important; } .stamp{opacity:1;transform:rotate(-7deg)} }
+
+  .results { display: none; } .results.show { display: block; }
+
+  /* ---- artifacts panel ----------------------------------------------------- */
+  .artifacts { display: none; }
+  .artifacts.show { display: block; }
+  .art { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); overflow: hidden; }
+  .art-head { display: flex; align-items: center; gap: 12px; padding: 12px 15px; border-bottom: 1px solid var(--line); background: #0a141e; }
+  .art-head .fname { font-family: var(--mono); font-size: 13px; color: var(--cyan); }
+  .art-head .kind { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; }
+  .art-actions { margin-left: auto; display: flex; gap: 8px; }
+  .art-actions button { font-family: var(--mono); font-size: 11px; color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 5px 11px; cursor: pointer; }
+  .art-actions button:hover { color: var(--cyan); border-color: var(--cyan); }
+  .art-actions button.ok { color: var(--green); border-color: var(--green); }
+  .art pre { margin: 0; padding: 14px 16px; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; color: var(--text); white-space: pre-wrap; word-break: break-word; max-height: 360px; overflow-y: auto; }
+  .art pre .vline { color: var(--red); font-weight: 700; }
+  .art pre .vline.clear { color: var(--green); }
+  .art pre .vline.review { color: var(--amber); }
+
+  footer { margin-top: 40px; color: var(--faint); font-size: 12px; font-family: var(--mono); line-height: 1.7; }
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">PatentPincer · prior-art search</p>
+  <h1>Describe your invention. Find out if it's already patented.</h1>
+  <p class="thesis">One sentence in. PatentPincer searches Google Patents and Scholar through SerpApi, pulls the actual claim text of the closest references, compares your invention element by element, and stamps a verdict: file it, narrow it, or walk away.</p>
+
+  <div class="section">
+    <div class="section-head">
+      <p class="sec-label">How it works</p>
+      <button class="helpbtn" id="helpBtn" aria-expanded="false" aria-controls="legend" title="What am I looking at?">?</button>
+    </div>
+
+    <div class="legend" id="legend" role="region" aria-label="How to read this page">
+      <h4>Reading this page in one glance</h4>
+      <ul>
+        <li><b>Provenance</b><span>LIVE means a real SerpApi response backed the run. FIXTURE means the offline demo corpus did, and a FIXTURE run is never allowed to return CLEAR. UNAVAILABLE means no search succeeded, which is a refusal and not a clearance.</span></li>
+        <li><b>Activity log</b><span>The recorded event stream of the run, with its real millisecond timings, one line per SerpApi call, guardrail decision, and verdict rule.</span></li>
+        <li><b>SerpApi ledger</b><span>Every call the run actually made, with the status it returned. Nothing is inferred.</span></li>
+        <li><b>Claim-element matrix</b><span>Your invention split into claim elements, each matched against a numbered claim of a cited reference, with the excerpt that carried the match. On a LIVE run those claims come from SerpApi's Google Patents Details API; on a FIXTURE run they come from the offline demo corpus.</span></li>
+        <li><b>Verdict</b><span>The stamp, computed from the matrix: Clear to file, Needs review, Likely anticipated, or Search unavailable.</span></li>
+        <li><b>Brief</b><span>The exported, decision-ready artifact, byte for byte what the CLI printed. Copy or download it.</span></li>
+      </ul>
+    </div>
+
+    <div class="card howcard">
+      <svg class="arch" viewBox="0 0 840 236" role="img" aria-label="PatentPincer pipeline: invention feeds the agent graph (search prior art, fetch claim text, assess novelty element by element, render verdict); the searcher calls SerpApi Google Patents, Scholar, and Patents Details through a spend guardrail; the verdict is routed to an alert or a ticket and the whole run is persisted with an audit trail.">
+        <defs>
+          <marker id="arw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="#5A7387"/>
+          </marker>
+        </defs>
+
+        <rect x="10" y="86" width="96" height="48" rx="8" fill="#0a141e" stroke="#274056"/>
+        <text x="58" y="106" text-anchor="middle" font-size="11">Invention</text>
+        <text x="58" y="121" text-anchor="middle" class="lbl">one sentence</text>
+
+        <rect x="128" y="20" width="360" height="196" rx="10" fill="none" stroke="#274056" stroke-dasharray="4 4"/>
+        <text x="140" y="38" class="lbl" font-size="10">Agent graph · agent-core supervisor</text>
+
+        <rect x="146" y="52" width="130" height="46" rx="8" fill="#13273A" stroke="#5FB0D9"/>
+        <circle cx="160" cy="66" r="8" fill="#5FB0D9"/><text x="160" y="69" text-anchor="middle" class="stepnum">1</text>
+        <text x="176" y="70" font-size="10.5">search prior art</text>
+        <text x="211" y="88" text-anchor="middle" class="lbl">Patents + Scholar</text>
+
+        <rect x="146" y="108" width="130" height="46" rx="8" fill="#13273A" stroke="#5FB0D9"/>
+        <circle cx="160" cy="122" r="8" fill="#5FB0D9"/><text x="160" y="125" text-anchor="middle" class="stepnum">2</text>
+        <text x="176" y="126" font-size="10.5">fetch claim text</text>
+        <text x="211" y="144" text-anchor="middle" class="lbl">Patents Details API</text>
+
+        <rect x="146" y="164" width="130" height="42" rx="8" fill="#13273A" stroke="#5FB0D9"/>
+        <circle cx="160" cy="178" r="8" fill="#5FB0D9"/><text x="160" y="181" text-anchor="middle" class="stepnum">3</text>
+        <text x="176" y="182" font-size="10.5">element matrix</text>
+        <text x="211" y="198" text-anchor="middle" class="lbl">element vs numbered claim</text>
+
+        <rect x="300" y="96" width="176" height="52" rx="8" fill="#13273A" stroke="#5FB0D9"/>
+        <circle cx="314" cy="110" r="8" fill="#5FB0D9"/><text x="314" y="113" text-anchor="middle" class="stepnum">4</text>
+        <text x="330" y="114" font-size="10.5">render verdict</text>
+        <text x="388" y="134" text-anchor="middle" class="lbl">CLEAR · NEEDS_REVIEW · HIGH_OVERLAP</text>
+        <text x="388" y="146" text-anchor="middle" class="lbl">· SEARCH_UNAVAILABLE</text>
+
+        <rect x="600" y="20" width="150" height="58" rx="8" fill="#0a141e" stroke="#3FBF7F"/>
+        <text x="675" y="41" text-anchor="middle" font-size="11" fill="#3FBF7F">SerpApi</text>
+        <text x="675" y="55" text-anchor="middle" class="lbl">google_patents · google_scholar</text>
+        <text x="675" y="68" text-anchor="middle" class="lbl">google_patents_details</text>
+
+        <rect x="600" y="92" width="150" height="48" rx="8" fill="#0a141e" stroke="#E0A63C"/>
+        <text x="675" y="112" text-anchor="middle" font-size="10.5" fill="#E0A63C">ActionLimiter</text>
+        <text x="675" y="127" text-anchor="middle" class="lbl">spend cap = 1 assessment</text>
+
+        <rect x="502" y="96" width="70" height="52" rx="8" fill="#13273A" stroke="#274056"/>
+        <text x="537" y="119" text-anchor="middle" font-size="10.5">Router</text>
+        <text x="537" y="133" text-anchor="middle" class="lbl">verdict line</text>
+
+        <rect x="600" y="156" width="96" height="30" rx="6" fill="#0a141e" stroke="#E5595B"/>
+        <text x="648" y="175" text-anchor="middle" font-size="10" fill="#E5595B">alert + ticket</text>
+        <rect x="706" y="156" width="70" height="30" rx="6" fill="#0a141e" stroke="#274056"/>
+        <text x="741" y="175" text-anchor="middle" font-size="10">ticket</text>
+
+        <rect x="300" y="176" width="176" height="34" rx="8" fill="#0a141e" stroke="#274056"/>
+        <text x="388" y="197" text-anchor="middle" font-size="10">StateStore · run + audit trail</text>
+
+        <line x1="106" y1="110" x2="144" y2="86" stroke="#5A7387" stroke-width="1.5" marker-end="url(#arw)"/>
+        <line x1="211" y1="98" x2="211" y2="106" stroke="#5A7387" stroke-width="1.5" marker-end="url(#arw)"/>
+        <line x1="211" y1="154" x2="211" y2="162" stroke="#5A7387" stroke-width="1.5" marker-end="url(#arw)"/>
+        <line x1="276" y1="176" x2="298" y2="146" stroke="#5A7387" stroke-width="1.5" marker-end="url(#arw)"/>
+        <path d="M276 62 C420 34, 470 34, 598 40" fill="none" stroke="#3FBF7F" stroke-width="1.5" marker-end="url(#arw)"/>
+        <path d="M598 60 C470 76, 420 82, 278 84" fill="none" stroke="#3FBF7F" stroke-width="1.5" marker-end="url(#arw)"/>
+        <line x1="598" y1="116" x2="280" y2="122" stroke="#E0A63C" stroke-width="1.2" stroke-dasharray="3 3" marker-end="url(#arw)"/>
+        <line x1="476" y1="122" x2="500" y2="122" stroke="#5A7387" stroke-width="1.5" marker-end="url(#arw)"/>
+        <line x1="572" y1="132" x2="600" y2="158" stroke="#5A7387" stroke-width="1.5" marker-end="url(#arw)"/>
+        <line x1="572" y1="126" x2="706" y2="158" stroke="#5A7387" stroke-width="1.5" marker-end="url(#arw)"/>
+        <line x1="388" y1="148" x2="388" y2="174" stroke="#5A7387" stroke-width="1.5" marker-end="url(#arw)"/>
+      </svg>
+      <div class="arch-legend">
+        <span><i class="swatch" style="background:#5FB0D9"></i>agent step</span>
+        <span><i class="swatch" style="background:#3FBF7F"></i>SerpApi data</span>
+        <span><i class="swatch" style="background:#E0A63C"></i>spend guardrail</span>
+        <span><i class="swatch" style="background:#E5595B"></i>alert route</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card filing">
+    <label for="inv">Invention (one sentence)</label>
+    <textarea id="inv"></textarea>
+    <div class="presets" id="presets"></div>
+    <div class="go">
+      <span class="hint" id="hint"></span>
+      <button class="assess" id="assessBtn">Assess patentability</button>
+    </div>
+  </div>
+
+  <div class="unsupported" id="unsupported">
+    <h4>Not a recorded run</h4>
+    <p id="unsupText"></p>
+    <pre id="unsupCmd"></pre>
+    <p>This page is a static replay of runs the CLI actually performed. It will not show you a verdict for an invention it never assessed, and it will not reuse another invention's prior art to fake one.</p>
+    <button class="replay" id="unsupRefusal">Replay the recorded refusal instead</button>
+  </div>
+
+  <div class="prov" id="prov">
+    <span class="badge" id="provBadge"></span>
+    <span class="ptext" id="provText"></span>
+  </div>
+
+  <div class="section" id="traceWrap" style="display:none">
+    <div class="section-head">
+      <p class="sec-label">Agent activity · recorded event stream</p>
+      <button class="replay" id="replayBtn" title="Replay the recorded run from the start">Replay</button>
+    </div>
+    <div class="card tracecard">
+      <div class="trace-bar" id="traceBar">
+        <span class="dot"></span>
+        <span class="title" id="traceTitle">Idle</span>
+        <span class="meter" id="traceMeter"></span>
+      </div>
+      <div class="trace-body" id="traceBody" role="log" aria-live="polite" aria-label="Agent activity log"></div>
+    </div>
+  </div>
+
+  <div class="results" id="results">
+    <div class="section">
+      <p class="sec-label">SerpApi call ledger · every call this run made</p>
+      <div class="tablewrap"><table class="ledger" id="ledger"></table></div>
+    </div>
+
+    <div class="section" id="matrixWrap">
+      <p class="sec-label">Claim-element matrix · element vs numbered claim</p>
+      <div id="matrix"></div>
+    </div>
+
+    <div class="section">
+      <p class="sec-label">Prior art examined</p>
+      <div class="refs" id="refs"></div>
+    </div>
+
+    <div class="verdict" id="verdict"></div>
+  </div>
+
+  <div class="section artifacts" id="artifacts">
+    <p class="sec-label">Exported artifact · patentability brief</p>
+    <div class="art">
+      <div class="art-head">
+        <span class="fname" id="artName">patentability-brief.txt</span>
+        <span class="kind">brief</span>
+        <div class="art-actions">
+          <button id="copyBtn" title="Copy the brief to your clipboard">Copy</button>
+          <button id="dlBtn" title="Download the brief as a text file">Download</button>
+        </div>
+      </div>
+      <pre id="artBody"></pre>
+    </div>
+  </div>
+
+  <footer id="footer"></footer>
+</div>
+
+<script>
+/* RUNS:BEGIN - generated by `patentpincer export-demo`; do not edit by hand */
+var PP_RUNS = {
+ "generated_by": "patentpincer export-demo",
+ "mode": "offline demo corpus",
+ "runs": [
+  {
+   "case": "anomaly-remediation",
+   "invention": "a system and method for autonomous anomaly remediation in data pipelines",
+   "verdict": "HIGH_OVERLAP",
+   "provenance": "FIXTURE",
+   "judgement": {
+    "verdict": "HIGH_OVERLAP",
+    "elements": 2,
+    "disclosed": 2,
+    "combined_coverage": 1.0,
+    "best_single_coverage": 1.0,
+    "closest": "US-11234567-B2",
+    "rationale": "US-11234567-B2 alone discloses 2 of 2 claim elements (100%); a single reference at this coverage anticipates"
+   },
+   "matrix": [
+    {
+     "element": "autonomous anomaly remediation",
+     "terms": [
+      "autonomou",
+      "anomaly",
+      "remediat"
+     ],
+     "disclosed": true,
+     "score": 1.0,
+     "best": {
+      "patent_id": "US-11234567-B2",
+      "title": "System and method for autonomous anomaly remediation in data pipelines",
+      "url": "https://patents.google.com/patent/US11234567B2",
+      "claim_number": 1,
+      "score": 1.0,
+      "matched_terms": [
+       "autonomou",
+       "anomaly",
+       "remediat"
+      ],
+      "excerpt": "A system for autonomous anomaly remediation in data pipelines, comprising: a detector that identifies a metric anomaly in a data pipeline; a diagnostic engine that determines a roo..."
+     }
+    },
+    {
+     "element": "data pipelines",
+     "terms": [
+      "data",
+      "pipelin"
+     ],
+     "disclosed": true,
+     "score": 1.0,
+     "best": {
+      "patent_id": "US-11234567-B2",
+      "title": "System and method for autonomous anomaly remediation in data pipelines",
+      "url": "https://patents.google.com/patent/US11234567B2",
+      "claim_number": 1,
+      "score": 1.0,
+      "matched_terms": [
+       "data",
+       "pipelin"
+      ],
+      "excerpt": "A system for autonomous anomaly remediation in data pipelines, comprising: a detector that identifies a metric anomaly in a data pipeline; a diagnostic engine that determines a roo..."
+     }
+    }
+   ],
+   "events": [
+    {
+     "at_ms": 0.0,
+     "stage": "run",
+     "level": "info",
+     "message": "Run run-20260826T102045-85c4a4 started",
+     "detail": {
+      "run_id": "run-20260826T102045-85c4a4",
+      "backend": "in-memory (explicit opt-in)"
+     }
+    },
+    {
+     "at_ms": 0.2,
+     "stage": "search",
+     "level": "warn",
+     "message": "search_patents q='a system and method for autonomous anomaly remediation in data pipelines' -> fixture (3 hits)",
+     "detail": {
+      "engine": "google_patents",
+      "status": "fixture",
+      "mode": "fixture",
+      "count": 3,
+      "reason": null
+     }
+    },
+    {
+     "at_ms": 0.2,
+     "stage": "search",
+     "level": "stop",
+     "message": "search_patents q='system method autonomous anomaly remediation data' -> fixture_unavailable (0 hits)",
+     "detail": {
+      "engine": "google_patents",
+      "status": "fixture_unavailable",
+      "mode": "fixture",
+      "count": 0,
+      "reason": "offline demo corpus covers only anomaly-remediation, sweat-hydration, turbine-inspection; set PP_SERPAPI_KEY to search anything else"
+     }
+    },
+    {
+     "at_ms": 0.2,
+     "stage": "search",
+     "level": "warn",
+     "message": "search_patents q='autonomous anomaly remediation data pipelines' -> fixture (3 hits)",
+     "detail": {
+      "engine": "google_patents",
+      "status": "fixture",
+      "mode": "fixture",
+      "count": 3,
+      "reason": null
+     }
+    },
+    {
+     "at_ms": 0.2,
+     "stage": "search",
+     "level": "warn",
+     "message": "search_scholar -> fixture (1 papers)",
+     "detail": {
+      "engine": "google_scholar",
+      "status": "fixture",
+      "mode": "fixture",
+      "count": 1,
+      "reason": null
+     }
+    },
+    {
+     "at_ms": 0.3,
+     "stage": "claims",
+     "level": "pass",
+     "message": "fetch_patent_details US-11234567-B2 -> fixture (3 claims)",
+     "detail": {
+      "patent_id": "US-11234567-B2",
+      "status": "fixture",
+      "claim_count": 3,
+      "reason": null
+     }
+    },
+    {
+     "at_ms": 0.4,
+     "stage": "claims",
+     "level": "pass",
+     "message": "fetch_patent_details US-10987654-B1 -> fixture (2 claims)",
+     "detail": {
+      "patent_id": "US-10987654-B1",
+      "status": "fixture",
+      "claim_count": 2,
+      "reason": null
+     }
+    },
+    {
+     "at_ms": 0.4,
+     "stage": "claims",
+     "level": "pass",
+     "message": "fetch_patent_details EP-3891234-A1 -> fixture (2 claims)",
+     "detail": {
+      "patent_id": "EP-3891234-A1",
+      "status": "fixture",
+      "claim_count": 2,
+      "reason": null
+     }
+    },
+    {
+     "at_ms": 0.9,
+     "stage": "assess",
+     "level": "pass",
+     "message": "Claim-element matrix: 2/2 elements disclosed; closest US-11234567-B2",
+     "detail": {
+      "elements": 2,
+      "disclosed": 2,
+      "best_single_coverage": 1.0
+     }
+    },
+    {
+     "at_ms": 0.9,
+     "stage": "verdict",
+     "level": "stop",
+     "message": "VERDICT: HIGH_OVERLAP",
+     "detail": {
+      "verdict": "HIGH_OVERLAP",
+      "rationale": "US-11234567-B2 alone discloses 2 of 2 claim elements (100%); a single reference at this coverage anticipates"
+     }
+    },
+    {
+     "at_ms": 2.9,
+     "stage": "route",
+     "level": "warn",
+     "message": "Routed to domain high_overlap via alert, ticket",
+     "detail": {
+      "domain": "high_overlap",
+      "handlers": [
+       [
+        "alert",
+        "noop"
+       ],
+       [
+        "ticket",
+        "noop"
+       ]
+      ]
+     }
+    },
+    {
+     "at_ms": 3.3,
+     "stage": "state",
+     "level": "info",
+     "message": "Recurrence: first assessment of this invention",
+     "detail": {}
+    },
+    {
+     "at_ms": 3.3,
+     "stage": "run",
+     "level": "pass",
+     "message": "Run complete",
+     "detail": {}
+    }
+   ],
+   "serpapi_calls": [
+    {
+     "engine": "google_patents",
+     "query": "a system and method for autonomous anomaly remediation in data pipelines",
+     "cycle": "run-20260826T102045-85c4a4",
+     "status": "fixture",
+     "mode": "fixture",
+     "reason": "",
+     "ms": 0.0
+    },
+    {
+     "engine": "google_patents",
+     "query": "system method autonomous anomaly remediation data",
+     "cycle": "run-20260826T102045-85c4a4",
+     "status": "fixture_unavailable",
+     "mode": "fixture",
+     "reason": "offline demo corpus covers only anomaly-remediation, sweat-hydration, turbine-inspection; set PP_SERPAPI_KEY to search anything else",
+     "ms": 0.0
+    },
+    {
+     "engine": "google_patents",
+     "query": "autonomous anomaly remediation data pipelines",
+     "cycle": "run-20260826T102045-85c4a4",
+     "status": "fixture",
+     "mode": "fixture",
+     "reason": "",
+     "ms": 0.0
+    },
+    {
+     "engine": "google_scholar",
+     "query": "a system and method for autonomous anomaly remediation in data pipelines",
+     "cycle": "run-20260826T102045-85c4a4",
+     "status": "fixture",
+     "mode": "fixture",
+     "reason": "",
+     "ms": 0.0
+    },
+    {
+     "engine": "google_patents_details",
+     "query": "patent/US11234567B2/en",
+     "cycle": "run-20260826T102045-85c4a4",
+     "status": "fixture",
+     "mode": "fixture",
+     "reason": "",
+     "ms": 0.0
+    },
+    {
+     "engine": "google_patents_details",
+     "query": "patent/US10987654B1/en",
+     "cycle": "run-20260826T102045-85c4a4",
+     "status": "fixture",
+     "mode": "fixture",
+     "reason": "",
+     "ms": 0.0
+    },
+    {
+     "engine": "google_patents_details",
+     "query": "patent/EP3891234A1/en",
+     "cycle": "run-20260826T102045-85c4a4",
+     "status": "fixture",
+     "mode": "fixture",
+     "reason": "",
+     "ms": 0.0
+    }
+   ],
+   "routing": {
+    "domain": "high_overlap",
+    "domains": [
+     "high_overlap"
+    ],
+    "route": [
+     "alert",
+     "ticket"
+    ],
+    "handlers": [
+     {
+      "status": "noop",
+      "handler": "alert",
+      "artifact_url": null,
+      "synthetic": true,
+      "detail": {
+       "delivery": "stub",
+       "channel": "#patents",
+       "reason": "no alert sink configured (set AGENT_SLACK_WEBHOOK_URL)",
+       "error": null
+      }
+     },
+     {
+      "status": "noop",
+      "handler": "ticket",
+      "artifact_url": null,
+      "synthetic": true,
+      "detail": {
+       "ticket_id": "LOCAL-PATENT-52EF219F",
+       "delivery": "stub",
+       "synthetic": true,
+       "reason": "no ticket backend configured; set AGENT_GITHUB_REPO + AGENT_GITHUB_TOKEN or AGENT_TICKET_ENDPOINT to file for real",
+       "error": null
+      }
+     }
+    ],
+    "artifacts": {},
+    "primary_artifact_url": null,
+    "delivery_mode": "synthetic"
+   },
+   "brief": "VERDICT: HIGH_OVERLAP\nPROVENANCE: FIXTURE\n  Evidence came from the offline demo corpus, not a live SerpApi search. Set PP_SERPAPI_KEY for real prior art.\n\nInvention: a system and method for autonomous anomaly remediation in data pipelines\n\nClaim-element matrix (element -> disclosing claim):\n  1. [DISCLOSED] autonomous anomaly remediation\n       US-11234567-B2 claim 1 (100% of terms: autonomou, anomaly, remediat)\n       \"A system for autonomous anomaly remediation in data pipelines, comprising: a detector that identifies a metric anomaly in a data pipeline; a diagnostic engine that determines a roo...\"\n  2. [DISCLOSED] data pipelines\n       US-11234567-B2 claim 1 (100% of terms: data, pipelin)\n       \"A system for autonomous anomaly remediation in data pipelines, comprising: a detector that identifies a metric anomaly in a data pipeline; a diagnostic engine that determines a roo...\"\n\nAssessment: US-11234567-B2 alone discloses 2 of 2 claim elements (100%); a single reference at this coverage anticipates.\n\nPrior art examined: 3 patents, 1 paper.\nCitations (claim text retrieved):\n  [1] US-11234567-B2 - System and method for autonomous anomaly remediation in data pipelines (Acme Analytics Inc., priority 2022-05-14) https://patents.google.com/patent/US11234567B2\n  [2] US-10987654-B1 - Prior-art retrieval using structured search over patent corpora (LexRetrieval LLC, priority 2021-11-02) https://patents.google.com/patent/US10987654B1\n  [3] EP-3891234-A1 - Method for scoring novelty of an invention against a reference set (Novelis Patent GmbH, priority 2020-03-19) https://patents.google.com/patent/EP3891234A1",
+   "patents": [
+    {
+     "patent_id": "US-11234567-B2",
+     "title": "System and method for autonomous anomaly remediation in data pipelines",
+     "assignee": "Acme Analytics Inc.",
+     "priority_date": "2022-05-14",
+     "url": "https://patents.google.com/patent/US11234567B2"
+    },
+    {
+     "patent_id": "US-10987654-B1",
+     "title": "Prior-art retrieval using structured search over patent corpora",
+     "assignee": "LexRetrieval LLC",
+     "priority_date": "2021-11-02",
+     "url": "https://patents.google.com/patent/US10987654B1"
+    },
+    {
+     "patent_id": "EP-3891234-A1",
+     "title": "Method for scoring novelty of an invention against a reference set",
+     "assignee": "Novelis Patent GmbH",
+     "priority_date": "2020-03-19",
+     "url": "https://patents.google.com/patent/EP3891234A1"
+    }
+   ],
+   "papers": [
+    {
+     "title": "A Survey of Automated Prior-Art Search",
+     "snippet": "Reviews retrieval methods for patentability analysis.",
+     "publication": "J. of IP Informatics, 2023",
+     "year": "2023",
+     "url": "https://scholar.example/survey-prior-art",
+     "provenance": "fixture"
+    }
+   ]
+  },
+  {
+   "case": "sweat-hydration",
+   "invention": "a wearable that estimates hydration from sweat conductivity",
+   "verdict": "NEEDS_REVIEW",
+   "provenance": "FIXTURE",
+   "judgement": {
+    "verdict": "CLEAR",
+    "elements": 3,
+    "disclosed": 1,
+    "combined_coverage": 0.333,
+    "best_single_coverage": 0.333,
+    "closest": "US-10456789-A",
+    "rationale": "only 1 of 3 claim elements are disclosed (33%); the undisclosed elements carry the novelty"
+   },
+   "matrix": [
+    {
+     "element": "a wearable",
+     "terms": [
+      "wearabl"
+     ],
+     "disclosed": true,
+     "score": 1.0,
+     "best": {
+      "patent_id": "US-10456789-A",
+      "title": "Wearable heart-rate optical sensor array",
+      "url": "https://patents.google.com/patent/US10456789A",
+      "claim_number": 1,
+      "score": 1.0,
+      "matched_terms": [
+       "wearabl"
+      ],
+      "excerpt": "A wearable band comprising an optical sensor array positioned against a wrist and a processor that derives a heart rate from the optical signal."
+     }
+    },
+    {
+     "element": "estimates hydration",
+     "terms": [
+      "estimat",
+      "hydrat"
+     ],
+     "disclosed": false,
+     "score": 0.0,
+     "best": {
+      "patent_id": "US-10456789-A",
+      "title": "Wearable heart-rate optical sensor array",
+      "url": "https://patents.google.com/patent/US10456789A",
+      "claim_number": 1,
+      "score": 0.0,
+      "matched_terms": [],
+      "excerpt": "A wearable band comprising an optical sensor array positioned against a wrist and a processor that derives a heart rate from the optical signal."
+     }
+    },
+    {
+     "element": "sweat conductivity",
+     "terms": [
+      "sweat",
+      "conductivity"
+     ],
+     "disclosed": false,
+     "score": 0.0,
+     "best": {
+      "patent_id": "US-10456789-A",
+      "title": "Wearable heart-rate optical sensor array",
+      "url": "https://patents.google.com/patent/US10456789A",
+      "claim_number": 1,
+      "score": 0.0,
+      "matched_terms": [],
+      "excerpt": "A wearable band comprising an optical sensor array positioned against a wrist and a processor that derives a heart rate from the optical signal."
+     }
+    }
+   ],
+   "events": [
+    {
+     "at_ms": 0.0,
+     "stage": "run",
+     "level": "info",
+     "message": "Run run-20260826T102045-def0ff started",
+     "detail": {
+      "run_id": "run-20260826T102045-def0ff",
+      "backend": "in-memory (explicit opt-in)"
+     }
+    },
+    {
+     "at_ms": 0.0,
+     "stage": "search",
+     "level": "warn",
+     "message": "search_patents q='a wearable that estimates hydration from sweat conductivity' -> fixture (2 hits)",
+     "detail": {
+      "engine": "google_patents",
+      "status": "fixture",
+      "mode": "fixture",
+      "count": 2,
+      "reason": null
+     }
+    },
+    {
+     "at_ms": 0.1,
+     "stage": "search",
+     "level": "warn",
+     "message": "search_patents q='wearable estimates hydration sweat conductivity' -> fixture (2 hits)",
+     "detail": {
+      "engine": "google_patents",
+      "status": "fixture",
+      "mode": "fixture",
+      "count": 2,
+      "reason": null
+     }
+    },
+    {
+     "at_ms": 0.1,
+     "stage": "search",
+     "level": "warn",
+     "message": "search_scholar -> fixture (1 papers)",
+     "detail": {
+      "engine": "google_scholar",
+      "status": "fixture",
+      "mode": "fixture",
+      "count": 1,
+      "reason": null
+     }
+    },
+    {
+     "at_ms": 0.1,
+     "stage": "claims",
+     "level": "pass",
+     "message": "fetch_patent_details US-10456789-A -> fixture (2 claims)",
+     "detail": {
+      "patent_id": "US-10456789-A",
+      "status": "fixture",
+      "claim_count": 2,
+      "reason": null
+     }
+    },
+    {
+     "at_ms": 0.1,
+     "stage": "claims",
+     "level": "pass",
+     "message": "fetch_patent_details WO-2021099887-A1 -> fixture (2 claims)",
+     "detail": {
+      "patent_id": "WO-2021099887-A1",
+      "status": "fixture",
+      "claim_count": 2,
+      "reason": null
+     }
+    },
+    {
+     "at_ms": 0.5,
+     "stage": "assess",
+     "level": "pass",
+     "message": "Claim-element matrix: 1/3 elements disclosed; closest US-10456789-A",
+     "detail": {
+      "elements": 3,
+      "disclosed": 1,
+      "best_single_coverage": 0.333
+     }
+    },
+    {
+     "at_ms": 0.5,
+     "stage": "verdict",
+     "level": "warn",
+     "message": "Offline demo corpus cannot clear an invention; CLEAR downgraded to NEEDS_REVIEW",
+     "detail": {
+      "downgraded_from": "CLEAR",
+      "verdict": "NEEDS_REVIEW"
+     }
+    },
+    {
+     "at_ms": 0.5,
+     "stage": "verdict",
+     "level": "warn",
+     "message": "VERDICT: NEEDS_REVIEW",
+     "detail": {
+      "verdict": "NEEDS_REVIEW",
+      "rationale": "only 1 of 3 claim elements are disclosed (33%); the undisclosed elements carry the novelty"
+     }
+    },
+    {
+     "at_ms": 1.7,
+     "stage": "route",
+     "level": "pass",
+     "message": "Routed to domain needs_review via ticket",
+     "detail": {
+      "domain": "needs_review",
+      "handlers": [
+       [
+        "ticket",
+        "noop"
+       ]
+      ]
+     }
+    },
+    {
+     "at_ms": 2.0,
+     "stage": "state",
+     "level": "info",
+     "message": "Recurrence: first assessment of this invention",
+     "detail": {}
+    },
+    {
+     "at_ms": 2.0,
+     "stage": "run",
+     "level": "pass",
+     "message": "Run complete",
+     "detail": {}
+    }
+   ],
+   "serpapi_calls": [
+    {
+     "engine": "google_patents",
+     "query": "a wearable that estimates hydration from sweat conductivity",
+     "cycle": "run-20260826T102045-def0ff",
+     "status": "fixture",
+     "mode": "fixture",
+     "reason": "",
+     "ms": 0.0
+    },
+    {
+     "engine": "google_patents",
+     "query": "wearable estimates hydration sweat conductivity",
+     "cycle": "run-20260826T102045-def0ff",
+     "status": "fixture",
+     "mode": "fixture",
+     "reason": "",
+     "ms": 0.0
+    },
+    {
+     "engine": "google_scholar",
+     "query": "a wearable that estimates hydration from sweat conductivity",
+     "cycle": "run-20260826T102045-def0ff",
+     "status": "fixture",
+     "mode": "fixture",
+     "reason": "",
+     "ms": 0.0
+    },
+    {
+     "engine": "google_patents_details",
+     "query": "patent/US10456789A/en",
+     "cycle": "run-20260826T102045-def0ff",
+     "status": "fixture",
+     "mode": "fixture",
+     "reason": "",
+     "ms": 0.0
+    },
+    {
+     "engine": "google_patents_details",
+     "query": "patent/WO2021099887A1/en",
+     "cycle": "run-20260826T102045-def0ff",
+     "status": "fixture",
+     "mode": "fixture",
+     "reason": "",
+     "ms": 0.0
+    }
+   ],
+   "routing": {
+    "domain": "needs_review",
+    "domains": [
+     "needs_review"
+    ],
+    "route": [
+     "ticket"
+    ],
+    "handlers": [
+     {
+      "status": "noop",
+      "handler": "ticket",
+      "artifact_url": null,
+      "synthetic": true,
+      "detail": {
+       "ticket_id": "LOCAL-PATENT-7345BF6F",
+       "delivery": "stub",
+       "synthetic": true,
+       "reason": "no ticket backend configured; set AGENT_GITHUB_REPO + AGENT_GITHUB_TOKEN or AGENT_TICKET_ENDPOINT to file for real",
+       "error": null
+      }
+     }
+    ],
+    "artifacts": {},
+    "primary_artifact_url": null,
+    "delivery_mode": "synthetic"
+   },
+   "brief": "VERDICT: NEEDS_REVIEW\nPROVENANCE: FIXTURE\n  Evidence came from the offline demo corpus, not a live SerpApi search. Set PP_SERPAPI_KEY for real prior art.\n  Assessment on the demo corpus was CLEAR; downgraded because no live search ran.\n\nInvention: a wearable that estimates hydration from sweat conductivity\n\nClaim-element matrix (element -> disclosing claim):\n  1. [DISCLOSED] a wearable\n       US-10456789-A claim 1 (100% of terms: wearabl)\n       \"A wearable band comprising an optical sensor array positioned against a wrist and a processor that derives a heart rate from the optical signal.\"\n  2. [not disclosed] estimates hydration\n       no claim text matched\n  3. [not disclosed] sweat conductivity\n       no claim text matched\n\nAssessment: only 1 of 3 claim elements are disclosed (33%); the undisclosed elements carry the novelty.\n\nPrior art examined: 2 patents, 1 paper.\nCitations (claim text retrieved):\n  [1] US-10456789-A - Wearable heart-rate optical sensor array (VitaBand Corp., priority 2019-07-30) https://patents.google.com/patent/US10456789A\n  [2] WO-2021099887-A1 - Electrolyte analysis from perspiration samples (SweatLab SA, priority 2021-01-12) https://patents.google.com/patent/WO2021099887A1",
+   "patents": [
+    {
+     "patent_id": "US-10456789-A",
+     "title": "Wearable heart-rate optical sensor array",
+     "assignee": "VitaBand Corp.",
+     "priority_date": "2019-07-30",
+     "url": "https://patents.google.com/patent/US10456789A"
+    },
+    {
+     "patent_id": "WO-2021099887-A1",
+     "title": "Electrolyte analysis from perspiration samples",
+     "assignee": "SweatLab SA",
+     "priority_date": "2021-01-12",
+     "url": "https://patents.google.com/patent/WO2021099887A1"
+    }
+   ],
+   "papers": [
+    {
+     "title": "Non-invasive Hydration Assessment: A Review",
+     "snippet": "Surveys bioimpedance, urine specific gravity, and salivary osmolality methods.",
+     "publication": "Sports Medicine Reviews, 2022",
+     "year": "2022",
+     "url": "https://scholar.example/hydration-review",
+     "provenance": "fixture"
+    }
+   ]
+  },
+  {
+   "case": "turbine-inspection",
+   "invention": "a drone that inspects wind turbines and files a maintenance ticket",
+   "verdict": "NEEDS_REVIEW",
+   "provenance": "FIXTURE",
+   "judgement": {
+    "verdict": "NEEDS_REVIEW",
+    "elements": 3,
+    "disclosed": 2,
+    "combined_coverage": 0.667,
+    "best_single_coverage": 0.667,
+    "closest": "US-11009888-B2",
+    "rationale": "2 of 3 claim elements are disclosed across the references (67%); no single reference reaches 80%, so the combination is the risk"
+   },
+   "matrix": [
+    {
+     "element": "a drone",
+     "terms": [
+      "dron"
+     ],
+     "disclosed": true,
+     "score": 1.0,
+     "best": {
+      "patent_id": "US-11009888-B2",
+      "title": "UAV visual inspection of wind-turbine blades",
+      "url": "https://patents.google.com/patent/US11009888B2",
+      "claim_number": 2,
+      "score": 1.0,
+      "matched_terms": [
+       "dron"
+      ],
+      "excerpt": "The unmanned aerial vehicle of claim 1, wherein the drone follows a predetermined flight path around a turbine tower during the inspection."
+     }
+    },
+    {
+     "element": "inspects wind turbines",
+     "terms": [
+      "inspect",
+      "wind",
+      "turbin"
+     ],
+     "disclosed": true,
+     "score": 1.0,
+     "best": {
+      "patent_id": "US-11009888-B2",
+      "title": "UAV visual inspection of wind-turbine blades",
+      "url": "https://patents.google.com/patent/US11009888B2",
+      "claim_number": 1,
+      "score": 1.0,
+      "matched_terms": [
+       "inspect",
+       "wind",
+       "turbin"
+      ],
+      "excerpt": "An unmanned aerial vehicle configured to perform a visual inspection of wind turbine blades, comprising a camera and a defect classifier that flags a surface defect from captured i..."
+     }
+    },
+    {
+     "element": "files a maintenance ticket",
+     "terms": [
+      "file",
+      "maintenanc",
+      "ticket"
+     ],
+     "disclosed": false,
+     "score": 0.333,
+     "best": {
+      "patent_id": "US-10777654-B1",
+      "title": "Automated work-order generation from sensor anomalies",
+      "url": "https://patents.google.com/patent/US10777654B1",
+      "claim_number": 1,
+      "score": 0.333,
+      "matched_terms": [
+       "maintenanc"
+      ],
+      "excerpt": "...g a sensor anomaly on an industrial asset; and generating a maintenance work order in an asset-management system in response to the detected anomaly."
+     }
+    }
+   ],
+   "events": [
+    {
+     "at_ms": 0.0,
+     "stage": "run",
+     "level": "info",
+     "message": "Run run-20260826T102045-b99897 started",
+     "detail": {
+      "run_id": "run-20260826T102045-b99897",
+      "backend": "in-memory (explicit opt-in)"
+     }
+    },
+    {
+     "at_ms": 0.0,
+     "stage": "search",
+     "level": "warn",
+     "message": "search_patents q='a drone that inspects wind turbines and files a maintenance ticket' -> fixture (2 hits)",
+     "detail": {
+      "engine": "google_patents",
+      "status": "fixture",
+      "mode": "fixture",
+      "count": 2,
+      "reason": null
+     }
+    },
+    {
+     "at_ms": 0.0,
+     "stage": "search",
+     "level": "warn",
+     "message": "search_patents q='drone inspects wind turbines files maintenance' -> fixture (2 hits)",
+     "detail": {
+      "engine": "google_patents",
+      "status": "fixture",
+      "mode": "fixture",
+      "count": 2,
+      "reason": null
+     }
+    },
+    {
+     "at_ms": 0.1,
+     "stage": "search",
+     "level": "warn",
+     "message": "search_patents q='drone inspects wind turbines files maintenance ticket' -> fixture (2 hits)",
+     "detail": {
+      "engine": "google_patents",
+      "status": "fixture",
+      "mode": "fixture",
+      "count": 2,
+      "reason": null
+     }
+    },
+    {
+     "at_ms": 0.1,
+     "stage": "search",
+     "level": "warn",
+     "message": "search_scholar -> fixture (1 papers)",
+     "detail": {
+      "engine": "google_scholar",
+      "status": "fixture",
+      "mode": "fixture",
+      "count": 1,
+      "reason": null
+     }
+    },
+    {
+     "at_ms": 0.1,
+     "stage": "claims",
+     "level": "pass",
+     "message": "fetch_patent_details US-11009888-B2 -> fixture (2 claims)",
+     "detail": {
+      "patent_id": "US-11009888-B2",
+      "status": "fixture",
+      "claim_count": 2,
+      "reason": null
+     }
+    },
+    {
+     "at_ms": 0.1,
+     "stage": "claims",
+     "level": "pass",
+     "message": "fetch_patent_details US-10777654-B1 -> fixture (2 claims)",
+     "detail": {
+      "patent_id": "US-10777654-B1",
+      "status": "fixture",
+      "claim_count": 2,
+      "reason": null
+     }
+    },
+    {
+     "at_ms": 0.6,
+     "stage": "assess",
+     "level": "pass",
+     "message": "Claim-element matrix: 2/3 elements disclosed; closest US-11009888-B2",
+     "detail": {
+      "elements": 3,
+      "disclosed": 2,
+      "best_single_coverage": 0.667
+     }
+    },
+    {
+     "at_ms": 0.6,
+     "stage": "verdict",
+     "level": "warn",
+     "message": "VERDICT: NEEDS_REVIEW",
+     "detail": {
+      "verdict": "NEEDS_REVIEW",
+      "rationale": "2 of 3 claim elements are disclosed across the references (67%); no single reference reaches 80%, so the combination is the risk"
+     }
+    },
+    {
+     "at_ms": 1.8,
+     "stage": "route",
+     "level": "pass",
+     "message": "Routed to domain needs_review via ticket",
+     "detail": {
+      "domain": "needs_review",
+      "handlers": [
+       [
+        "ticket",
+        "noop"
+       ]
+      ]
+     }
+    },
+    {
+     "at_ms": 2.1,
+     "stage": "state",
+     "level": "info",
+     "message": "Recurrence: first assessment of this invention",
+     "detail": {}
+    },
+    {
+     "at_ms": 2.1,
+     "stage": "run",
+     "level": "pass",
+     "message": "Run complete",
+     "detail": {}
+    }
+   ],
+   "serpapi_calls": [
+    {
+     "engine": "google_patents",
+     "query": "a drone that inspects wind turbines and files a maintenance ticket",
+     "cycle": "run-20260826T102045-b99897",
+     "status": "fixture",
+     "mode": "fixture",
+     "reason": "",
+     "ms": 0.0
+    },
+    {
+     "engine": "google_patents",
+     "query": "drone inspects wind turbines files maintenance",
+     "cycle": "run-20260826T102045-b99897",
+     "status": "fixture",
+     "mode": "fixture",
+     "reason": "",
+     "ms": 0.0
+    },
+    {
+     "engine": "google_patents",
+     "query": "drone inspects wind turbines files maintenance ticket",
+     "cycle": "run-20260826T102045-b99897",
+     "status": "fixture",
+     "mode": "fixture",
+     "reason": "",
+     "ms": 0.0
+    },
+    {
+     "engine": "google_scholar",
+     "query": "a drone that inspects wind turbines and files a maintenance ticket",
+     "cycle": "run-20260826T102045-b99897",
+     "status": "fixture",
+     "mode": "fixture",
+     "reason": "",
+     "ms": 0.0
+    },
+    {
+     "engine": "google_patents_details",
+     "query": "patent/US11009888B2/en",
+     "cycle": "run-20260826T102045-b99897",
+     "status": "fixture",
+     "mode": "fixture",
+     "reason": "",
+     "ms": 0.0
+    },
+    {
+     "engine": "google_patents_details",
+     "query": "patent/US10777654B1/en",
+     "cycle": "run-20260826T102045-b99897",
+     "status": "fixture",
+     "mode": "fixture",
+     "reason": "",
+     "ms": 0.0
+    }
+   ],
+   "routing": {
+    "domain": "needs_review",
+    "domains": [
+     "needs_review"
+    ],
+    "route": [
+     "ticket"
+    ],
+    "handlers": [
+     {
+      "status": "noop",
+      "handler": "ticket",
+      "artifact_url": null,
+      "synthetic": true,
+      "detail": {
+       "ticket_id": "LOCAL-PATENT-F5D14F2C",
+       "delivery": "stub",
+       "synthetic": true,
+       "reason": "no ticket backend configured; set AGENT_GITHUB_REPO + AGENT_GITHUB_TOKEN or AGENT_TICKET_ENDPOINT to file for real",
+       "error": null
+      }
+     }
+    ],
+    "artifacts": {},
+    "primary_artifact_url": null,
+    "delivery_mode": "synthetic"
+   },
+   "brief": "VERDICT: NEEDS_REVIEW\nPROVENANCE: FIXTURE\n  Evidence came from the offline demo corpus, not a live SerpApi search. Set PP_SERPAPI_KEY for real prior art.\n\nInvention: a drone that inspects wind turbines and files a maintenance ticket\n\nClaim-element matrix (element -> disclosing claim):\n  1. [DISCLOSED] a drone\n       US-11009888-B2 claim 2 (100% of terms: dron)\n       \"The unmanned aerial vehicle of claim 1, wherein the drone follows a predetermined flight path around a turbine tower during the inspection.\"\n  2. [DISCLOSED] inspects wind turbines\n       US-11009888-B2 claim 1 (100% of terms: inspect, wind, turbin)\n       \"An unmanned aerial vehicle configured to perform a visual inspection of wind turbine blades, comprising a camera and a defect classifier that flags a surface defect from captured i...\"\n  3. [not disclosed] files a maintenance ticket\n       US-10777654-B1 claim 1 (33% of terms: maintenanc)\n       \"...g a sensor anomaly on an industrial asset; and generating a maintenance work order in an asset-management system in response to the detected anomaly.\"\n\nAssessment: 2 of 3 claim elements are disclosed across the references (67%); no single reference reaches 80%, so the combination is the risk.\n\nPrior art examined: 2 patents, 1 paper.\nCitations (claim text retrieved):\n  [1] US-11009888-B2 - UAV visual inspection of wind-turbine blades (SkyTurbine Ltd., priority 2020-09-02) https://patents.google.com/patent/US11009888B2\n  [2] US-10777654-B1 - Automated work-order generation from sensor anomalies (FieldOps Systems, priority 2019-04-18) https://patents.google.com/patent/US10777654B1",
+   "patents": [
+    {
+     "patent_id": "US-11009888-B2",
+     "title": "UAV visual inspection of wind-turbine blades",
+     "assignee": "SkyTurbine Ltd.",
+     "priority_date": "2020-09-02",
+     "url": "https://patents.google.com/patent/US11009888B2"
+    },
+    {
+     "patent_id": "US-10777654-B1",
+     "title": "Automated work-order generation from sensor anomalies",
+     "assignee": "FieldOps Systems",
+     "priority_date": "2019-04-18",
+     "url": "https://patents.google.com/patent/US10777654B1"
+    }
+   ],
+   "papers": [
+    {
+     "title": "Autonomous UAV Inspection of Renewable Assets",
+     "snippet": "Reviews flight planning and defect detection for turbine and solar-farm inspection.",
+     "publication": "Renewable Systems Letters, 2021",
+     "year": "2021",
+     "url": "https://scholar.example/uav-inspection",
+     "provenance": "fixture"
+    }
+   ]
+  },
+  {
+   "case": "off-corpus-refusal",
+   "invention": "a quantum teapot that brews tea at absolute zero",
+   "verdict": "SEARCH_UNAVAILABLE",
+   "provenance": "UNAVAILABLE",
+   "judgement": {
+    "rationale": "prior-art search did not succeed (fixture_unavailable)"
+   },
+   "matrix": [],
+   "events": [
+    {
+     "at_ms": 0.0,
+     "stage": "run",
+     "level": "info",
+     "message": "Run run-20260826T102045-a844e5 started",
+     "detail": {
+      "run_id": "run-20260826T102045-a844e5",
+      "backend": "in-memory (explicit opt-in)"
+     }
+    },
+    {
+     "at_ms": 0.0,
+     "stage": "search",
+     "level": "stop",
+     "message": "search_patents q='a quantum teapot that brews tea at absolute zero' -> fixture_unavailable (0 hits)",
+     "detail": {
+      "engine": "google_patents",
+      "status": "fixture_unavailable",
+      "mode": "fixture",
+      "count": 0,
+      "reason": "offline demo corpus covers only anomaly-remediation, sweat-hydration, turbine-inspection; set PP_SERPAPI_KEY to search anything else"
+     }
+    },
+    {
+     "at_ms": 0.0,
+     "stage": "search",
+     "level": "stop",
+     "message": "search_patents q='quantum teapot brews absolute zero' -> fixture_unavailable (0 hits)",
+     "detail": {
+      "engine": "google_patents",
+      "status": "fixture_unavailable",
+      "mode": "fixture",
+      "count": 0,
+      "reason": "offline demo corpus covers only anomaly-remediation, sweat-hydration, turbine-inspection; set PP_SERPAPI_KEY to search anything else"
+     }
+    },
+    {
+     "at_ms": 0.0,
+     "stage": "search",
+     "level": "stop",
+     "message": "search_scholar -> fixture_unavailable (0 papers)",
+     "detail": {
+      "engine": "google_scholar",
+      "status": "fixture_unavailable",
+      "mode": "fixture",
+      "count": 0,
+      "reason": "offline demo corpus covers only anomaly-remediation, sweat-hydration, turbine-inspection; set PP_SERPAPI_KEY to search anything else"
+     }
+    },
+    {
+     "at_ms": 0.0,
+     "stage": "verdict",
+     "level": "stop",
+     "message": "No Google Patents search succeeded (fixture_unavailable); failing closed",
+     "detail": {
+      "verdict": "SEARCH_UNAVAILABLE"
+     }
+    },
+    {
+     "at_ms": 0.6,
+     "stage": "route",
+     "level": "warn",
+     "message": "Routed to domain search_unavailable via alert, ticket",
+     "detail": {
+      "domain": "search_unavailable",
+      "handlers": [
+       [
+        "alert",
+        "noop"
+       ],
+       [
+        "ticket",
+        "noop"
+       ]
+      ]
+     }
+    },
+    {
+     "at_ms": 0.8,
+     "stage": "state",
+     "level": "info",
+     "message": "Recurrence: first assessment of this invention",
+     "detail": {}
+    },
+    {
+     "at_ms": 0.8,
+     "stage": "run",
+     "level": "pass",
+     "message": "Run complete",
+     "detail": {}
+    }
+   ],
+   "serpapi_calls": [
+    {
+     "engine": "google_patents",
+     "query": "a quantum teapot that brews tea at absolute zero",
+     "cycle": "run-20260826T102045-a844e5",
+     "status": "fixture_unavailable",
+     "mode": "fixture",
+     "reason": "offline demo corpus covers only anomaly-remediation, sweat-hydration, turbine-inspection; set PP_SERPAPI_KEY to search anything else",
+     "ms": 0.0
+    },
+    {
+     "engine": "google_patents",
+     "query": "quantum teapot brews absolute zero",
+     "cycle": "run-20260826T102045-a844e5",
+     "status": "fixture_unavailable",
+     "mode": "fixture",
+     "reason": "offline demo corpus covers only anomaly-remediation, sweat-hydration, turbine-inspection; set PP_SERPAPI_KEY to search anything else",
+     "ms": 0.0
+    },
+    {
+     "engine": "google_scholar",
+     "query": "a quantum teapot that brews tea at absolute zero",
+     "cycle": "run-20260826T102045-a844e5",
+     "status": "fixture_unavailable",
+     "mode": "fixture",
+     "reason": "offline demo corpus covers only anomaly-remediation, sweat-hydration, turbine-inspection; set PP_SERPAPI_KEY to search anything else",
+     "ms": 0.0
+    }
+   ],
+   "routing": {
+    "domain": "search_unavailable",
+    "domains": [
+     "search_unavailable"
+    ],
+    "route": [
+     "alert",
+     "ticket"
+    ],
+    "handlers": [
+     {
+      "status": "noop",
+      "handler": "alert",
+      "artifact_url": null,
+      "synthetic": true,
+      "detail": {
+       "delivery": "stub",
+       "channel": "#patents",
+       "reason": "no alert sink configured (set AGENT_SLACK_WEBHOOK_URL)",
+       "error": null
+      }
+     },
+     {
+      "status": "noop",
+      "handler": "ticket",
+      "artifact_url": null,
+      "synthetic": true,
+      "detail": {
+       "ticket_id": "LOCAL-PATENT-353F9447",
+       "delivery": "stub",
+       "synthetic": true,
+       "reason": "no ticket backend configured; set AGENT_GITHUB_REPO + AGENT_GITHUB_TOKEN or AGENT_TICKET_ENDPOINT to file for real",
+       "error": null
+      }
+     }
+    ],
+    "artifacts": {},
+    "primary_artifact_url": null,
+    "delivery_mode": "synthetic"
+   },
+   "brief": "VERDICT: SEARCH_UNAVAILABLE\nPROVENANCE: UNAVAILABLE\n  No prior-art search succeeded. This is a refusal, not a clearance. Do not treat it as one.\n\nInvention: a quantum teapot that brews tea at absolute zero\n\nprior-art search did not succeed (fixture_unavailable)\n\nThis is a refusal, not a clearance.\n\nPrior art examined: 0 patents, 0 papers.",
+   "patents": [],
+   "papers": []
+  }
+ ]
+};
+/* RUNS:END */
+</script>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+
+  var RUNS = (PP_RUNS && PP_RUNS.runs) || [];
+  var VLABEL = {
+    CLEAR: "Clear to file", NEEDS_REVIEW: "Needs review",
+    HIGH_OVERLAP: "Likely anticipated", SEARCH_UNAVAILABLE: "Search unavailable"
+  };
+  var VCOLOR = {
+    CLEAR: "var(--green)", NEEDS_REVIEW: "var(--amber)",
+    HIGH_OVERLAP: "var(--red)", SEARCH_UNAVAILABLE: "var(--red)"
+  };
+  var PROVTEXT = {
+    LIVE: "A live SerpApi response backed this run. The references and claim text below are real Google Patents data.",
+    FIXTURE: "This run used the offline demo corpus, not a live SerpApi search. It is real output of the real pipeline over hand-written reference records. A FIXTURE run is never allowed to return CLEAR: the pipeline downgrades it to NEEDS_REVIEW, because data that is not evidence cannot clear an invention. Set <b>PP_SERPAPI_KEY</b> and rerun for live prior art.",
+    UNAVAILABLE: "No prior-art search succeeded for this invention. The pipeline refuses to return a verdict it cannot support, so it fails closed to SEARCH_UNAVAILABLE and routes an alert. This is a refusal, not a clearance."
+  };
+  var TICKMARK = { pass: "✓", warn: "!", stop: "✕", info: "›" };
+  var LEVELTICK = { pass: "pass", warn: "warn", stop: "stop", info: "info" };
+
+  var REDUCE = false;
+  try { REDUCE = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
+
+  function norm(s) { return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
+  function findRun(text) {
+    var n = norm(text);
+    for (var i = 0; i < RUNS.length; i++) { if (norm(RUNS[i].invention) === n) return RUNS[i]; }
+    return null;
+  }
+
+  /* ---- preset chips, straight from the recorded runs ------------------------ */
+  var pc = $("presets");
+  RUNS.forEach(function (r) {
+    var b = document.createElement("button");
+    b.className = "chip";
+    b.textContent = r.invention.length > 44 ? r.invention.slice(0, 42) + "…" : r.invention;
+    b.title = r.invention + "  →  " + r.verdict;
+    b.onclick = function () { $("inv").value = r.invention; hideAll(); };
+    pc.appendChild(b);
+  });
+  if (RUNS.length) $("inv").value = RUNS[0].invention;
+  $("hint").textContent = RUNS.length
+    ? RUNS.length + " recorded runs available offline"
+    : "no recorded runs: run `patentpincer export-demo`";
+
+  function hideAll() {
+    $("unsupported").classList.remove("show");
+    $("prov").classList.remove("show");
+    $("results").classList.remove("show");
+    $("artifacts").classList.remove("show");
+    $("traceWrap").style.display = "none";
+  }
+
+  /* ---- provenance banner ----------------------------------------------------- */
+  function renderProvenance(run) {
+    var p = $("prov");
+    p.className = "prov show " + run.provenance;
+    $("provBadge").textContent = run.provenance;
+    $("provText").innerHTML = PROVTEXT[run.provenance] || "";
+  }
+
+  /* ---- SerpApi ledger --------------------------------------------------------- */
+  function renderLedger(run) {
+    var rows = run.serpapi_calls || [];
+    var html = "<thead><tr><th>engine</th><th>query / patent id</th><th>status</th><th>mode</th><th class=\"num\">ms</th></tr></thead><tbody>";
+    rows.forEach(function (c) {
+      html += "<tr><td>" + esc(c.engine) + "</td>" +
+        "<td class=\"q\">" + esc(c.query) + (c.reason ? "<br><span style=\"color:var(--faint)\">" + esc(c.reason) + "</span>" : "") + "</td>" +
+        "<td><span class=\"st " + esc(c.status) + "\">" + esc(c.status) + "</span></td>" +
+        "<td>" + esc(c.mode) + "</td>" +
+        "<td class=\"num\">" + esc(c.ms) + "</td></tr>";
+    });
+    if (!rows.length) html += "<tr><td colspan=\"5\">no SerpApi calls recorded</td></tr>";
+    $("ledger").innerHTML = html + "</tbody>";
+  }
+
+  /* ---- claim-element matrix ---------------------------------------------------- */
+  function renderMatrix(run, animate) {
+    var host = $("matrix");
+    host.innerHTML = "";
+    if (!run.matrix || !run.matrix.length) {
+      host.innerHTML = "<div class=\"mrow\"><div class=\"el\">No element comparison was performed. " +
+        esc((run.judgement && run.judgement.rationale) || "") + "</div></div>";
+      return;
+    }
+    run.matrix.forEach(function (row, i) {
+      var best = row.best, pct = Math.round((row.score || 0) * 100);
+      var col = row.disclosed ? "var(--red)" : pct >= 40 ? "var(--amber)" : "var(--cyan)";
+      var el = document.createElement("div");
+      el.className = "mrow";
+      var cite = "no claim text matched this element";
+      if (best && best.patent_id) {
+        var link = best.url
+          ? "<a href=\"" + esc(best.url) + "\" target=\"_blank\" rel=\"noopener\">" + esc(best.patent_id) + "</a>"
+          : esc(best.patent_id);
+        cite = link + " &middot; claim " + esc(best.claim_number) +
+          " &middot; " + pct + "% of element terms matched" +
+          (best.matched_terms && best.matched_terms.length
+            ? " (" + esc(best.matched_terms.join(", ")) + ")" : "");
+      }
+      el.innerHTML =
+        "<div class=\"mhead\"><span class=\"el\">" + (i + 1) + ". " + esc(row.element) + "</span>" +
+        "<span class=\"tag " + (row.disclosed ? "yes\">disclosed" : "no\">not disclosed") + "</span></div>" +
+        "<div class=\"bar\"><span style=\"background:" + col + "\"></span></div>" +
+        "<div class=\"cite\">" + cite + "</div>" +
+        (best && best.excerpt ? "<blockquote>" + esc(best.excerpt) + "</blockquote>" : "");
+      host.appendChild(el);
+      (function (span) {
+        setTimeout(function () { span.style.width = pct + "%"; }, animate ? 90 + i * 80 : 0);
+      })(el.querySelector(".bar > span"));
+    });
+  }
+
+  /* ---- prior art refs ---------------------------------------------------------- */
+  function renderRefs(run) {
+    var host = $("refs");
+    host.innerHTML = "";
+    (run.patents || []).forEach(function (p) {
+      var el = document.createElement("div");
+      el.className = "ref";
+      var pid = p.url
+        ? "<a class=\"pid\" href=\"" + esc(p.url) + "\" target=\"_blank\" rel=\"noopener\">" + esc(p.patent_id) + "</a>"
+        : "<span class=\"pid\">" + esc(p.patent_id) + "</span>";
+      el.innerHTML =
+        "<div class=\"rhead\">" + pid + "<span class=\"meta\">" + esc(p.assignee || "unknown assignee") +
+        " &middot; priority " + esc(p.priority_date || "n/a") + "</span></div>" +
+        "<div class=\"ttl\">" + esc(p.title) + "</div>";
+      host.appendChild(el);
+    });
+    (run.papers || []).forEach(function (p) {
+      var el = document.createElement("div");
+      el.className = "ref";
+      el.innerHTML =
+        "<div class=\"rhead\"><span class=\"pid\">non-patent literature</span>" +
+        "<span class=\"meta\">" + esc(p.publication || p.year || "") + "</span></div>" +
+        "<div class=\"ttl\">" + esc(p.title) + "</div>";
+      host.appendChild(el);
+    });
+    if (!(run.patents || []).length && !(run.papers || []).length) {
+      host.innerHTML = "<div class=\"ref\"><div class=\"ttl\">No references were retrieved.</div></div>";
+    }
+  }
+
+  /* ---- verdict stamp ------------------------------------------------------------ */
+  function renderVerdict(run, animate) {
+    var c = VCOLOR[run.verdict] || "var(--red)";
+    var j = run.judgement || {};
+    var routed = run.routing
+      ? "Routed to domain <code>" + esc(run.routing.domain) + "</code> via " +
+        esc((run.routing.route || []).join(" + "))
+      : "";
+    var down = "";
+    (run.events || []).forEach(function (e) {
+      if (e.detail && e.detail.downgraded_from) {
+        down = "Computed " + esc(e.detail.downgraded_from) +
+          " on the demo corpus, downgraded to " + esc(run.verdict) +
+          " because no live SerpApi search ran.";
+      }
+    });
+    $("verdict").innerHTML =
+      "<div class=\"stamp\" style=\"--c:" + c + "\">" + esc(run.verdict.replace(/_/g, " ")) + "</div>" +
+      "<div class=\"vtext\"><p class=\"vt\" style=\"color:" + c + "\">" +
+      esc(VLABEL[run.verdict] || run.verdict) + "</p>" +
+      "<p class=\"vd\">" + esc(j.rationale || "") + ". " + "</p>" +
+      "<p class=\"vd\" style=\"margin-top:6px\">" + routed + "</p>" +
+      (down ? "<p class=\"down\">" + down + "</p>" : "") + "</div>";
+    if (animate) {
+      requestAnimationFrame(function () {
+        var s = $("verdict").querySelector(".stamp"); if (s) s.classList.add("land");
+      });
+    } else {
+      var s = $("verdict").querySelector(".stamp");
+      if (s) { s.style.opacity = "1"; s.style.transform = "rotate(-7deg)"; }
+    }
+  }
+
+  /* ---- brief artifact ------------------------------------------------------------ */
+  var currentBrief = "";
+  function renderArtifact(run) {
+    currentBrief = run.brief || "";
+    var cls = run.verdict === "CLEAR" ? "clear" : run.verdict === "NEEDS_REVIEW" ? "review" : "";
+    $("artBody").innerHTML = esc(currentBrief).replace(/^(VERDICT: [A-Z_]+)/,
+      "<span class=\"vline " + cls + "\">$1</span>");
+    $("artifacts").classList.add("show");
+  }
+
+  /* ---- activity log playback (real recorded at_ms values) ------------------------ */
+  var traceTimer = null;
+  function addStep(ev) {
+    var body = $("traceBody");
+    var el = document.createElement("div");
+    el.className = "step";
+    var tick = LEVELTICK[ev.level] || "info";
+    el.innerHTML =
+      "<div class=\"gutter\"><span class=\"tick " + tick + "\">" + TICKMARK[tick] + "</span><span class=\"rail\"></span></div>" +
+      "<div><div class=\"k\">" + esc(ev.stage) + "</div><div class=\"msg\">" + esc(ev.message) + "</div></div>" +
+      "<div class=\"t\">" + esc(ev.at_ms) + " ms</div>";
+    body.appendChild(el);
+    requestAnimationFrame(function () { el.classList.add("in"); });
+    body.scrollTop = body.scrollHeight;
+  }
+
+  function play(run) {
+    if (traceTimer) { clearTimeout(traceTimer); traceTimer = null; }
+    hideAll();
+    $("traceWrap").style.display = "";
+    $("traceBody").innerHTML = "";
+    var bar = $("traceBar");
+    bar.className = "trace-bar running";
+    $("traceTitle").textContent = "Replaying recorded run";
+    var events = run.events || [];
+    var last = events.length ? events[events.length - 1].at_ms : 0;
+    $("traceMeter").textContent = events.length + " events · " + last + " ms real elapsed";
+
+    var i = 0;
+    function next() {
+      if (i >= events.length) {
+        bar.className = "trace-bar done";
+        $("traceTitle").textContent = "Run complete";
+        renderProvenance(run);
+        renderLedger(run);
+        renderMatrix(run, !REDUCE);
+        renderRefs(run);
+        renderVerdict(run, !REDUCE);
+        $("results").classList.add("show");
+        renderArtifact(run);
+        return;
+      }
+      addStep(events[i++]);
+      traceTimer = setTimeout(next, REDUCE ? 0 : 150);
+    }
+    next();
+  }
+
+  /* ---- assess button --------------------------------------------------------------- */
+  var lastRun = null;
+  function assess() {
+    var text = $("inv").value || "";
+    var run = findRun(text);
+    if (!run) {
+      hideAll();
+      $("unsupText").innerHTML =
+        "PatentPincer has no recorded run for <b>" + esc(text.trim().slice(0, 140) || "(empty)") +
+        "</b>. The offline demo corpus covers three named inventions only, so a browser page with no backend " +
+        "cannot search Google Patents for this one. Run it for real:";
+      $("unsupCmd").textContent =
+        "export PP_SERPAPI_KEY=...   # a free SerpApi key is enough\n" +
+        "patentpincer assess " + JSON.stringify(text.trim() || "your invention");
+      $("unsupported").classList.add("show");
+      return;
+    }
+    lastRun = run;
+    play(run);
+  }
+  $("assessBtn").addEventListener("click", assess);
+  $("replayBtn").addEventListener("click", function () { if (lastRun) play(lastRun); });
+  $("unsupRefusal").addEventListener("click", function () {
+    var refusal = null;
+    RUNS.forEach(function (r) { if (r.verdict === "SEARCH_UNAVAILABLE" && !refusal) refusal = r; });
+    if (refusal) { $("inv").value = refusal.invention; lastRun = refusal; play(refusal); }
+  });
+
+  $("helpBtn").addEventListener("click", function () {
+    var open = $("legend").classList.toggle("show");
+    this.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+
+  /* ---- artifact copy / download ------------------------------------------------------ */
+  $("copyBtn").addEventListener("click", function () {
+    var btn = this, text = currentBrief || $("artBody").textContent;
+    function ok() { btn.textContent = "Copied"; btn.classList.add("ok"); setTimeout(function () { btn.textContent = "Copy"; btn.classList.remove("ok"); }, 1600); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(ok, function () { fallbackCopy(text); ok(); });
+    } else { fallbackCopy(text); ok(); }
+  });
+  function fallbackCopy(text) {
+    var ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    try { document.execCommand("copy"); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+  $("dlBtn").addEventListener("click", function () {
+    var text = currentBrief || $("artBody").textContent;
+    var blob = new Blob([text], { type: "text/plain" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a"); a.href = url; a.download = "patentability-brief.txt";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  });
+
+  /* ---- honest footer, generated from the recorded payload ---------------------------- */
+  var modes = {};
+  RUNS.forEach(function (r) { modes[r.provenance] = (modes[r.provenance] || 0) + 1; });
+  var modeBits = Object.keys(modes).map(function (k) { return modes[k] + " " + k; }).join(", ");
+  $("footer").innerHTML =
+    "This page replays " + RUNS.length + " runs the CLI actually performed (" + esc(modeBits) + "). " +
+    "Every event timing, SerpApi status, claim excerpt, and verdict below was produced by " +
+    "<code>patentpincer export-demo</code> and written into this file; nothing here is hand-authored.<br>" +
+    "No SerpApi key was set when these runs were recorded, so the references come from the offline demo corpus " +
+    "and are labelled FIXTURE. With <code>PP_SERPAPI_KEY</code> set, the same code path calls SerpApi Google Patents, " +
+    "Scholar, and Patents Details and the badge reads LIVE.<br>" +
+    "Built on doom2quake agent-core.";
+
+  // Auto-run the first recorded case so the page is never empty on load.
+  if (RUNS.length) { lastRun = RUNS[0]; play(RUNS[0]); }
+})();
+</script>
