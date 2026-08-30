@@ -1,0 +1,77 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1600px;height:1000px;overflow:hidden}
+  body{font-family:-apple-system,'Segoe UI',system-ui,sans-serif;color:#f4efe6;
+    background:radial-gradient(1300px 900px at 50% 0%,#241d0b 0%,#171206 46%,#0b0905 100%);padding:44px 54px}
+  .grid{position:absolute;inset:0;opacity:.10;background-image:linear-gradient(#3a3116 1px,transparent 1px),linear-gradient(90deg,#3a3116 1px,transparent 1px);background-size:50px 50px}
+  h1{font-size:29px;font-weight:800;letter-spacing:-.01em;position:relative}
+  h1 b{color:#f5b301}
+  .by{float:right;color:#a5966f;font-size:14px;letter-spacing:.13em;text-transform:uppercase;margin-top:9px}
+  .k{font-size:12px;letter-spacing:.13em;text-transform:uppercase;color:#b3a271;font-weight:700}
+  .box{border:1px solid #5a4a20;background:rgba(60,50,22,.5);border-radius:14px;padding:15px 18px}
+  .v{font-size:20px;font-weight:700;margin-top:5px}
+  .s{font-size:14px;color:#d9cba6;margin-top:6px;line-height:1.45}
+  .band{display:flex;gap:16px;align-items:stretch;margin-top:16px}
+  .arw{display:flex;align-items:center;color:#8a7333;font-size:26px;font-weight:800}
+  .col{flex:1}
+  .center{display:flex;justify-content:center;color:#8a7333;font-size:24px;font-weight:800;margin:8px 0}
+  .three{display:flex;gap:14px}
+  .three .box{flex:1;border-color:#7a6222;background:linear-gradient(180deg,rgba(80,64,26,.6),rgba(40,32,14,.55))}
+  .three .v{font-size:17px}
+  .pipe{display:flex;align-items:center;gap:8px;margin-top:4px}
+  .stage{flex:1;text-align:center;font-size:15px;font-weight:700;color:#1a1608;background:#f5b301;border-radius:9px;padding:11px 5px}
+  .guard{margin-top:12px;border:1px dashed #7a6222;border-radius:10px;padding:9px 14px;font-size:13.5px;color:#e6dcbf;text-align:center;background:rgba(245,179,1,.06)}
+  .guard b{color:#f5b301}
+  .verdict{display:flex;gap:12px;align-items:center}
+  .pill{font-size:16px;font-weight:700;padding:10px 16px;border-radius:10px}
+  .file{color:#0b2a12;background:#7fe08a}.narrow{color:#2a2208;background:#f5cf6b}.walk{color:#2a0d0d;background:#ff8a8a}
+  .foot{position:absolute;left:54px;right:54px;bottom:38px;border-top:1px solid #3a3116;padding-top:16px;display:flex;justify-content:space-between;font-size:14px;color:#d9cba6}
+  .foot b{color:#f4efe6}
+</style></head><body>
+  <div class="grid"></div>
+  <h1><b>PatentPincer</b> architecture <span style="color:#b3a271;font-weight:600;font-size:17px">&middot; a grounded patentability analyst</span><span class="by">doom2quake &middot; SerpApi</span></h1>
+
+  <!-- input -->
+  <div class="band">
+    <div class="box col"><div class="k">Input</div><div class="v">An invention, in one sentence</div><div class="s">The founder describes the idea. Nothing else is required to run an assessment.</div></div>
+  </div>
+  <div class="center">&#9660;</div>
+
+  <!-- data plane: SerpApi 3 engines -->
+  <div>
+    <div class="k" style="margin-bottom:8px">Data backbone &middot; SerpApi</div>
+    <div class="three">
+      <div class="box"><div class="k">Search</div><div class="v">Google Patents</div><div class="s">2 to 3 phrasings widen recall.</div></div>
+      <div class="box"><div class="k">Claim text</div><div class="v">Patents Details</div><div class="s">Pulls the actual claims of the closest hits.</div></div>
+      <div class="box"><div class="k">Non-patent lit</div><div class="v">Google Scholar</div><div class="s">Catches prior art that is not a patent.</div></div>
+    </div>
+  </div>
+  <div class="center">&#9660;</div>
+
+  <!-- agent pipeline -->
+  <div class="box" style="border-color:#7a6222">
+    <div class="k">The analyst agent</div>
+    <div class="pipe" style="margin-top:10px">
+      <div class="stage">Plan query variants</div><span class="arw">&rsaquo;</span>
+      <div class="stage">Search prior art</div><span class="arw">&rsaquo;</span>
+      <div class="stage">Fetch claim text</div><span class="arw">&rsaquo;</span>
+      <div class="stage">Compare element by element</div><span class="arw">&rsaquo;</span>
+      <div class="stage">Decide</div>
+    </div>
+    <div class="guard">Spend guardrail: each SerpApi call is booked against a budget sized to <b>exactly one assessment</b> &middot; refuses to print a verdict if the claim fetch was starved</div>
+  </div>
+  <div class="center">&#9660;</div>
+
+  <!-- output -->
+  <div class="band">
+    <div class="box col" style="display:flex;justify-content:space-between;align-items:center">
+      <div><div class="k">Decision-ready verdict, with citations</div><div class="s" style="margin-top:4px">Which elements are disclosed, which are novel, every claim backed by a source you can open.</div></div>
+      <div class="verdict"><span class="pill file">File it</span><span class="pill narrow">Narrow it</span><span class="pill walk">Walk away</span></div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div>The three tools are also served over the <b>Model Context Protocol</b>, so other agents can reuse the same guarded backbone.</div>
+    <div style="color:#f5b301;font-weight:700">Runs offline on a fixture corpus with no key</div>
+  </div>
+</body></html>
