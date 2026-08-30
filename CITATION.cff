@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+title: "PatentPincer: an autonomous patentability analyst over SerpApi prior art"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - family-names: "Sarkar"
+    given-names: "Dipankar"
+repository-code: "https://github.com/doom2quake/patentpincer"
+abstract: >-
+  Describe an invention in one sentence and PatentPincer searches the prior art,
+  fetches the numbered claims of the closest references, compares the invention
+  element by element, and returns a decision-ready verdict (CLEAR, NEEDS_REVIEW,
+  HIGH_OVERLAP, or SEARCH_UNAVAILABLE) with citations. SerpApi's Google Patents,
+  Patents Details and Scholar engines are the load-bearing data backbone; the
+  analyst is a skill graph built on the doom2quake agent-core, with SerpApi spend
+  held behind a rate guardrail and the verdict routed to the right destination. A
+  search that did not succeed, an empty reference set, or claim text that was
+  never retrieved all fail closed, and never to a clearance.
+keywords:
+  - prior-art-search
+  - patentability
+  - serpapi
+  - google-patents
+  - autonomous-agent
+license: MIT
+version: "0.1.0"
+date-released: "2026-08-19"
